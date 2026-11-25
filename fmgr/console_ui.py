@@ -1,6 +1,12 @@
 from fmgr.file_explorer import FileExplorer
 from fmgr.file_manager import FileManager
 from fmgr.file_selector import FileSelector
+from fmgr.interfaces import UserInterface
+
+
+class ConsoleUserInterface(UserInterface):
+    def show_message(self, message: str) -> None:
+        print(message)
 
 
 def main_menu(file_selector: FileSelector, file_explorer: FileExplorer, file_manager: FileManager) -> None:

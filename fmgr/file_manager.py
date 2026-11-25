@@ -1,44 +1,41 @@
-import os
-import shutil
-
-from fmgr.file_selector import FileSelector
+from fmgr.interfaces import FileSelection, FileSystem, UserInterface
 
 
 class FileManager:
-    def __init__(self, file_selector: FileSelector) -> None:
-        self.file_selector = file_selector
+    def __init__(self, selection: FileSelection, ui: UserInterface, file_system: FileSystem) -> None:
+        self._selection = selection
+        self._ui = ui
+        self._file_system = file_system
 
     def copy_files(self, destination: str) -> None:
         try:
-            selected_files = self.file_selector.get_selected_files()
+            selected_files = self._selection.get_selected_files()
             for path in selected_files:
-                if os.path.exists(path):
-                    shutil.copy2(path, destination)
-            print(f"{len(selected_files)} file(s) copied")
-            self.file_selector.clear_selection()
+                if self._file_system.exists(path):
+                    self._file_system.copy(path, destination)
+            self._ui.show_message(f"{len(selected_files)} file(s) copied")
+            self._selection.clear_selection()
         except Exception as e:
-            print(f"Copy error: {e}")
+            self._ui.show_message(f"Copy error: {e}")
 
     def move_files(self, destination: str) -> None:
         try:
-            selected_files = self.file_selector.get_selected_files()
+            selected_files = self._selection.get_selected_files()
             for path in selected_files:
-                if os.path.exists(path):
-                    shutil.move(path, destination)
-            print(f"{len(selected_files)} file(s) moved")
-            self.file_selector.clear_selection()
+                if self._file_system.exists(path):
+                    self._file_system.move(path, destination)
+            self._ui.show_message(f"{len(selected_files)} file(s) moved")
+            self._selection.clear_selection()
         except Exception as e:
-            print(f"Move error: {e}")
+            self._ui.show_message(f"Move error: {e}")
 
     def delete_files(self) -> None:
         try:
-            selected_files = self.file_selector.get_selected_files()
+            selected_files = self._selection.get_selected_files()
             for path in selected_files:
-                if os.path.isfile(path):
-                    os.remove(path)
-                elif os.path.isdir(path):
-                    shutil.rmtree(path)
-            print(f"{len(selected_files)} file(s)/folder(s) deleted")
-            self.file_selector.clear_selection()
+                if self._file_system.exists(path):
+                    self._file_system.delete(path)
+            self._ui.show_message(f"{len(selected_files)} file(s)/folder(s) deleted")
+            self._selection.clear_selection()
         except Exception as e:
-            print(f"Delete error: {e}")
+            self._ui.show_message(f"Delete error: {e}")
