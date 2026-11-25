@@ -1,12 +1,23 @@
 from fmgr.file_explorer import FileExplorer
 from fmgr.file_manager import FileManager
 from fmgr.file_selector import FileSelector
-from fmgr.interfaces import UserInterface
+from fmgr.interfaces import ErrorChoice, UserInterface
+
+ERROR_CHOICES = {str(choice.value) for choice in ErrorChoice}
 
 
 class ConsoleUserInterface(UserInterface):
     def show_message(self, message: str) -> None:
         print(message)
+
+    def error_choice(self, path: str, error: OSError) -> int:
+        print(f"Error on {path}: {error}")
+        print("0. Ignore  1. Always ignore  2. Stop  3. Cancel and roll back")
+        while True:
+            answer = input("Your choice: ").strip()
+            if answer in ERROR_CHOICES:
+                return int(answer)
+            print("Invalid choice")
 
 
 def main_menu(file_selector: FileSelector, file_explorer: FileExplorer, file_manager: FileManager) -> None:

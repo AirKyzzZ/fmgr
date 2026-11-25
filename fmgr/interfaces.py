@@ -1,4 +1,12 @@
 from abc import ABC, abstractmethod
+from enum import IntEnum
+
+
+class ErrorChoice(IntEnum):
+    IGNORE = 0
+    IGNORE_ALL = 1
+    STOP = 2
+    ROLLBACK = 3
 
 
 class FileSelection(ABC):
@@ -12,6 +20,9 @@ class FileSelection(ABC):
 class UserInterface(ABC):
     @abstractmethod
     def show_message(self, message: str) -> None: ...
+
+    @abstractmethod
+    def error_choice(self, path: str, error: OSError) -> int: ...
 
 
 class FileSystem(ABC):
