@@ -240,6 +240,19 @@ class TestMoveFiles:
 
         assert file_system.entries == INITIAL_ENTRIES
 
+    def test_rollback_reports_a_file_it_cannot_move_back_and_restores_the_others(
+        self, manager, selection, ui, file_system
+    ):
+        selection.files = [A, B, C]
+        file_system.fail("move", C, PermissionError("locked"))
+        file_system.fail("restore", "/dst/b.txt", PermissionError("busy"))
+        ui.choices = [ErrorChoice.ROLLBACK]
+
+        manager.move_files("/dst")
+
+        assert file_system.entries == {**without(B), "/dst/b.txt": "B"}
+        assert ui.messages == ["Could not roll back /src/b.txt: busy", "Move cancelled, changes rolled back"]
+
     @pytest.mark.parametrize("destination", ["/nowhere", B])
     def test_refuses_a_destination_that_is_not_a_directory(self, manager, selection, ui, file_system, destination):
         selection.files = [A, C]
