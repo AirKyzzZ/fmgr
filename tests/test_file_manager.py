@@ -335,6 +335,15 @@ class TestDeleteFiles:
 
         assert file_system.entries == without(A)
 
+    def test_reports_a_staged_file_it_cannot_purge_and_purges_the_others(self, manager, selection, ui, file_system):
+        selection.files = [A, B]
+        file_system.fail("delete", "/src/.a.txt.trash", PermissionError("busy"))
+
+        manager.delete_files()
+
+        assert file_system.entries == {**without(A, B), "/src/.a.txt.trash": "A"}
+        assert ui.messages == ["2 file(s)/folder(s) deleted", "Could not purge /src/.a.txt.trash: busy"]
+
     def test_rollback_restores_a_deleted_directory(self, manager, selection, ui, file_system):
         selection.files = [PHOTOS, A]
         file_system.fail("trash", A, PermissionError("locked"))
