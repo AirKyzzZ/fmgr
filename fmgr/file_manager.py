@@ -48,7 +48,7 @@ class FileManager:
             self._ui.show_message(f"{operation} cancelled, changes rolled back")
             return []
         if interruption is None:
-            self._ui.show_message(f"{len(selected_files)} {done_message}")
+            self._ui.show_message(f"{len(done)} {done_message}")
         else:
             self._ui.show_message(f"{operation} stopped")
         self._selection.clear_selection()

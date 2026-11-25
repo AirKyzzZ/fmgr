@@ -420,7 +420,6 @@ class TestErrorChoices:
 
         assert [path for path, _ in ui.errors] == [A, B]
 
-    @pytest.mark.xfail(strict=True, reason="the message counts every selected file, even the ignored ones")
     def test_ignored_files_are_not_counted(self, operation, manager, selection, ui, file_system):
         selection.files = [A, B, C]
         file_system.fail(operation.failing_step, A, PermissionError("locked"))
