@@ -29,6 +29,9 @@ def _rename_without_replacing(current: str, original: str) -> None:
 
 
 class OsFileSystem(FileSystem):
+    def is_dir(self, path: str) -> bool:
+        return os.path.isdir(path)
+
     def copy(self, source: str, destination: str) -> str:
         return shutil.copy2(source, _target(source, destination))
 

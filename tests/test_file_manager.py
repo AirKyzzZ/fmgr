@@ -146,7 +146,6 @@ class TestCopyFiles:
         assert isinstance(ui.errors[0][1], IsADirectoryError)
         assert file_system.entries == {**INITIAL_ENTRIES, "/dst/a.txt": "A"}
 
-    @pytest.mark.xfail(strict=True, reason="asks error_choice for every file instead of refusing the destination once")
     @pytest.mark.parametrize("destination", ["/nowhere", B])
     def test_refuses_a_destination_that_is_not_a_directory(self, manager, selection, ui, file_system, destination):
         selection.files = [A, C]
@@ -241,7 +240,6 @@ class TestMoveFiles:
 
         assert file_system.entries == INITIAL_ENTRIES
 
-    @pytest.mark.xfail(strict=True, reason="asks error_choice for every file instead of refusing the destination once")
     @pytest.mark.parametrize("destination", ["/nowhere", B])
     def test_refuses_a_destination_that_is_not_a_directory(self, manager, selection, ui, file_system, destination):
         selection.files = [A, C]

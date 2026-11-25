@@ -39,6 +39,9 @@ class FakeFileSystem(FileSystem):
     def fail(self, operation: str, path: str, error: Exception) -> None:
         self.failures[(operation, path)] = error
 
+    def is_dir(self, path: str) -> bool:
+        return self.entries.get(path) == DIRECTORY
+
     def copy(self, source: str, destination: str) -> str:
         self._check("copy", source)
         if self.entries[source] == DIRECTORY:

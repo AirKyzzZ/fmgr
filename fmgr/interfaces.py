@@ -27,6 +27,9 @@ class UserInterface(ABC):
 
 class FileSystem(ABC):
     @abstractmethod
+    def is_dir(self, path: str) -> bool: ...
+
+    @abstractmethod
     def copy(self, source: str, destination: str) -> str: ...
 
     @abstractmethod

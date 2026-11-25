@@ -10,6 +10,8 @@ class FileManager:
         self._file_system = file_system
 
     def copy_files(self, destination: str) -> None:
+        if not self._accepts_destination(destination):
+            return
         self._run(
             "Copy",
             "file(s) copied",
@@ -18,6 +20,8 @@ class FileManager:
         )
 
     def move_files(self, destination: str) -> None:
+        if not self._accepts_destination(destination):
+            return
         self._run(
             "Move",
             "file(s) moved",
@@ -33,6 +37,12 @@ class FileManager:
             undo=lambda source, trashed: self._file_system.restore(trashed, source),
         )
         self._purge(trashed)
+
+    def _accepts_destination(self, destination: str) -> bool:
+        if self._file_system.is_dir(destination):
+            return True
+        self._ui.show_message(f"Destination is not a directory: {destination}")
+        return False
 
     def _run(
         self,
