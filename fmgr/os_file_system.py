@@ -1,6 +1,7 @@
 import errno
 import os
 import shutil
+import uuid
 
 from fmgr.interfaces import FileSystem
 
@@ -23,8 +24,18 @@ class OsFileSystem(FileSystem):
     def move(self, source: str, destination: str) -> str:
         return shutil.move(source, _target(source, destination))
 
+    def restore(self, current: str, original: str) -> None:
+        _ensure_free(original)
+        shutil.move(current, original)
+
+    def trash(self, path: str) -> str:
+        parent, name = os.path.split(path)
+        trashed = os.path.join(parent, f".{name}.{uuid.uuid4().hex}.fmgr-trash")
+        os.rename(path, trashed)
+        return trashed
+
     def delete(self, path: str) -> None:
-        if os.path.isdir(path):
+        if os.path.isdir(path) and not os.path.islink(path):
             shutil.rmtree(path)
             return
         os.remove(path)
