@@ -14,3 +14,8 @@ dev = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+
+[tool.mutmut]
+source_paths = ["fmgr/"]
+only_mutate = ["fmgr/file_manager.py"]
+pytest_add_cli_args_test_selection = ["tests/"]
