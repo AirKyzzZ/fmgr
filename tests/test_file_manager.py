@@ -1,3 +1,7 @@
+import posixpath
+from collections.abc import Callable
+from dataclasses import dataclass
+
 import pytest
 
 from fmgr.file_manager import FileManager
@@ -328,3 +332,168 @@ class TestDeleteFiles:
         manager.delete_files()
 
         assert file_system.entries == INITIAL_ENTRIES
+
+
+def copied(file_system: FakeFileSystem, path: str) -> bool:
+    return posixpath.join("/dst", posixpath.basename(path)) in file_system.entries
+
+
+def moved(file_system: FakeFileSystem, path: str) -> bool:
+    return copied(file_system, path) and path not in file_system.entries
+
+
+def deleted(file_system: FakeFileSystem, path: str) -> bool:
+    return path not in file_system.entries
+
+
+@dataclass(frozen=True)
+class Operation:
+    name: str
+    run: Callable[[FileManager], None]
+    failing_step: str
+    done_message: str
+    processed: Callable[[FakeFileSystem, str], bool]
+
+
+OPERATIONS = [
+    Operation("Copy", lambda manager: manager.copy_files("/dst"), "copy", "file(s) copied", copied),
+    Operation("Move", lambda manager: manager.move_files("/dst"), "move", "file(s) moved", moved),
+    Operation("Delete", lambda manager: manager.delete_files(), "trash", "file(s)/folder(s) deleted", deleted),
+]
+
+
+@pytest.mark.parametrize("operation", OPERATIONS, ids=lambda operation: operation.name.lower())
+class TestErrorChoices:
+    def test_passes_the_failing_path_and_error_to_the_user(self, operation, manager, selection, ui, file_system):
+        error = PermissionError("locked")
+        selection.files = [A, B, C]
+        file_system.fail(operation.failing_step, B, error)
+        ui.choices = [ErrorChoice.IGNORE]
+
+        operation.run(manager)
+
+        assert ui.errors == [(B, error)]
+
+    def test_ignore_skips_the_file_and_continues(self, operation, manager, selection, ui, file_system):
+        selection.files = [A, B, C]
+        file_system.fail(operation.failing_step, B, PermissionError("locked"))
+        ui.choices = [ErrorChoice.IGNORE]
+
+        operation.run(manager)
+
+        assert operation.processed(file_system, A)
+        assert not operation.processed(file_system, B)
+        assert operation.processed(file_system, C)
+        assert selection.files == []
+
+    def test_ignore_asks_again_on_the_next_error(self, operation, manager, selection, ui, file_system):
+        selection.files = [A, B, C]
+        file_system.fail(operation.failing_step, A, PermissionError("locked"))
+        file_system.fail(operation.failing_step, B, PermissionError("locked"))
+        ui.choices = [ErrorChoice.IGNORE, ErrorChoice.IGNORE]
+
+        operation.run(manager)
+
+        assert [path for path, _ in ui.errors] == [A, B]
+        assert operation.processed(file_system, C)
+
+    def test_always_ignore_asks_only_once(self, operation, manager, selection, ui, file_system):
+        selection.files = [A, B, C]
+        file_system.fail(operation.failing_step, A, PermissionError("locked"))
+        file_system.fail(operation.failing_step, B, PermissionError("locked"))
+        ui.choices = [ErrorChoice.IGNORE_ALL]
+
+        operation.run(manager)
+
+        assert [path for path, _ in ui.errors] == [A]
+        assert operation.processed(file_system, C)
+
+    def test_always_ignore_only_lasts_for_the_current_operation(self, operation, manager, selection, ui, file_system):
+        file_system.fail(operation.failing_step, A, PermissionError("locked"))
+        file_system.fail(operation.failing_step, B, PermissionError("locked"))
+        ui.choices = [ErrorChoice.IGNORE_ALL, ErrorChoice.IGNORE]
+
+        selection.files = [A]
+        operation.run(manager)
+        selection.files = [B]
+        operation.run(manager)
+
+        assert [path for path, _ in ui.errors] == [A, B]
+
+    @pytest.mark.xfail(strict=True, reason="the message counts every selected file, even the ignored ones")
+    def test_ignored_files_are_not_counted(self, operation, manager, selection, ui, file_system):
+        selection.files = [A, B, C]
+        file_system.fail(operation.failing_step, A, PermissionError("locked"))
+        file_system.fail(operation.failing_step, B, PermissionError("locked"))
+        ui.choices = [ErrorChoice.IGNORE, ErrorChoice.IGNORE_ALL]
+
+        operation.run(manager)
+
+        assert ui.messages == [f"1 {operation.done_message}"]
+
+    def test_stop_keeps_what_was_done_and_skips_the_rest(self, operation, manager, selection, ui, file_system):
+        selection.files = [A, B, C]
+        file_system.fail(operation.failing_step, B, PermissionError("locked"))
+        ui.choices = [ErrorChoice.STOP]
+
+        operation.run(manager)
+
+        assert operation.processed(file_system, A)
+        assert not operation.processed(file_system, B)
+        assert not operation.processed(file_system, C)
+        assert selection.files == []
+
+    @pytest.mark.xfail(strict=True, reason="the stop message does not say how many files were processed")
+    def test_stop_reports_how_many_files_were_processed(self, operation, manager, selection, ui, file_system):
+        selection.files = [A, B, C]
+        file_system.fail(operation.failing_step, C, PermissionError("locked"))
+        ui.choices = [ErrorChoice.STOP]
+
+        operation.run(manager)
+
+        assert ui.messages == [f"{operation.name} stopped, 2 {operation.done_message}"]
+
+    def test_unknown_choice_stops_the_operation(self, operation, manager, selection, ui, file_system):
+        selection.files = [A, B, C]
+        file_system.fail(operation.failing_step, B, PermissionError("locked"))
+        ui.choices = [42]
+
+        operation.run(manager)
+
+        assert operation.processed(file_system, A)
+        assert not operation.processed(file_system, C)
+
+    def test_rollback_restores_the_initial_state(self, operation, manager, selection, ui, file_system):
+        selection.files = [A, B, C]
+        file_system.fail(operation.failing_step, C, PermissionError("locked"))
+        ui.choices = [ErrorChoice.ROLLBACK]
+
+        operation.run(manager)
+
+        assert file_system.entries == INITIAL_ENTRIES
+        assert ui.messages == [f"{operation.name} cancelled, changes rolled back"]
+
+    def test_rollback_on_the_first_file_changes_nothing(self, operation, manager, selection, ui, file_system):
+        selection.files = [A, B]
+        file_system.fail(operation.failing_step, A, PermissionError("locked"))
+        ui.choices = [ErrorChoice.ROLLBACK]
+
+        operation.run(manager)
+
+        assert file_system.entries == INITIAL_ENTRIES
+
+    def test_rollback_keeps_the_selection(self, operation, manager, selection, ui, file_system):
+        selection.files = [A, B]
+        file_system.fail(operation.failing_step, B, PermissionError("locked"))
+        ui.choices = [ErrorChoice.ROLLBACK]
+
+        operation.run(manager)
+
+        assert selection.files == [A, B]
+
+    def test_does_not_swallow_unexpected_exceptions(self, operation, manager, selection, file_system):
+        selection.files = [A]
+        file_system.fail(operation.failing_step, A, RuntimeError("bug"))
+
+        with pytest.raises(RuntimeError):
+            operation.run(manager)
