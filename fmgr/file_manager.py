@@ -18,7 +18,7 @@ class FileManager:
     def delete_files(self) -> None:
         self._run("Delete", "file(s)/folder(s) deleted", self._file_system.delete)
 
-    def _run(self, operation: str, done_message: str, apply: Callable[[str], None]) -> None:
+    def _run(self, operation: str, done_message: str, apply: Callable[[str], object]) -> None:
         selected_files = list(self._selection.get_selected_files())
         interruption = self._apply_all(selected_files, apply)
         if interruption is None:
@@ -27,7 +27,7 @@ class FileManager:
             self._ui.show_message(f"{operation} stopped")
         self._selection.clear_selection()
 
-    def _apply_all(self, sources: list[str], apply: Callable[[str], None]) -> int | None:
+    def _apply_all(self, sources: list[str], apply: Callable[[str], object]) -> int | None:
         ignore_all = False
         for source in sources:
             try:
