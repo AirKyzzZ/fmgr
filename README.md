@@ -86,7 +86,7 @@ Couverture des lignes et des branches :
 uv run pytest --cov=fmgr --cov-branch --cov-report=term-missing
 ```
 
-Seul `fmgr/file_manager.py` est visé, il est à 100 % en lignes et en branches. Le reste du paquet (console, explorateur, adaptateur `os`) n'est pas testé unitairement.
+Seul `fmgr/file_manager.py` est visé, il est à 100 % en lignes et en branches. La console et l'explorateur ne sont pas testés, l'adaptateur `os` n'a que deux tests sur `restore` (`tests/test_os_file_system.py`).
 
 Tests de mutation avec mutmut, configuré dans `pyproject.toml` pour ne muter que `fmgr/file_manager.py` :
 
