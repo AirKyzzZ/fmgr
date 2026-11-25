@@ -153,3 +153,98 @@ class TestCopyFiles:
         assert ui.messages == [f"Destination is not a directory: {destination}"]
         assert file_system.entries == INITIAL_ENTRIES
         assert selection.files == [A, C]
+
+
+class TestMoveFiles:
+    def test_moves_a_selected_file(self, manager, selection, ui, file_system):
+        selection.files = [A]
+
+        manager.move_files("/dst")
+
+        assert file_system.entries == {**without(A), "/dst/a.txt": "A"}
+        assert ui.messages == ["1 file(s) moved"]
+        assert ui.errors == []
+
+    def test_moves_files_and_directories(self, manager, selection, ui, file_system):
+        selection.files = [A, PHOTOS]
+
+        manager.move_files("/dst")
+
+        assert file_system.entries == {**without(A, PHOTOS), "/dst/a.txt": "A", "/dst/photos": DIRECTORY}
+        assert ui.messages == ["2 file(s) moved"]
+
+    def test_empty_selection_moves_nothing(self, manager, ui, file_system):
+        manager.move_files("/dst")
+
+        assert file_system.entries == INITIAL_ENTRIES
+        assert ui.messages == ["0 file(s) moved"]
+        assert ui.errors == []
+
+    def test_moves_names_with_spaces_and_accents(self, manager, selection, ui, file_system):
+        file_system.entries["/src/rapport final é.pdf"] = "pdf"
+        selection.files = ["/src/rapport final é.pdf"]
+
+        manager.move_files("/dst")
+
+        assert "/src/rapport final é.pdf" not in file_system.entries
+        assert file_system.entries["/dst/rapport final é.pdf"] == "pdf"
+        assert ui.messages == ["1 file(s) moved"]
+
+    def test_clears_the_selection_once_done(self, manager, selection):
+        selection.files = [A, B]
+
+        manager.move_files("/dst")
+
+        assert selection.files == []
+
+    def test_reports_a_missing_source_to_the_user(self, manager, selection, ui, file_system):
+        selection.files = ["/src/ghost.txt", A]
+        ui.choices = [ErrorChoice.IGNORE]
+
+        manager.move_files("/dst")
+
+        [(path, error)] = ui.errors
+        assert path == "/src/ghost.txt"
+        assert isinstance(error, FileNotFoundError)
+        assert file_system.entries == {**without(A), "/dst/a.txt": "A"}
+
+    def test_keeps_both_files_on_a_name_collision(self, manager, selection, ui, file_system):
+        file_system.entries["/dst/a.txt"] = "old"
+        selection.files = [A]
+        ui.choices = [ErrorChoice.IGNORE]
+
+        manager.move_files("/dst")
+
+        assert isinstance(ui.errors[0][1], FileExistsError)
+        assert file_system.entries["/dst/a.txt"] == "old"
+        assert file_system.entries[A] == "A"
+
+    def test_moving_into_the_source_directory_is_reported(self, manager, selection, ui, file_system):
+        selection.files = [A]
+        ui.choices = [ErrorChoice.IGNORE]
+
+        manager.move_files("/src")
+
+        assert isinstance(ui.errors[0][1], FileExistsError)
+        assert file_system.entries == INITIAL_ENTRIES
+
+    def test_rollback_moves_a_directory_back(self, manager, selection, ui, file_system):
+        selection.files = [PHOTOS, A]
+        file_system.fail("move", A, PermissionError("locked"))
+        ui.choices = [ErrorChoice.ROLLBACK]
+
+        manager.move_files("/dst")
+
+        assert file_system.entries == INITIAL_ENTRIES
+
+    @pytest.mark.xfail(strict=True, reason="asks error_choice for every file instead of refusing the destination once")
+    @pytest.mark.parametrize("destination", ["/nowhere", B])
+    def test_refuses_a_destination_that_is_not_a_directory(self, manager, selection, ui, file_system, destination):
+        selection.files = [A, C]
+
+        manager.move_files(destination)
+
+        assert ui.errors == []
+        assert ui.messages == [f"Destination is not a directory: {destination}"]
+        assert file_system.entries == INITIAL_ENTRIES
+        assert selection.files == [A, C]
