@@ -1,7 +1,9 @@
 import os
 
+from fmgr.interfaces import FileSelection
 
-class FileSelector:
+
+class FileSelector(FileSelection):
     def __init__(self) -> None:
         self.selected_files: list[str] = []
         self.current_directory_contents: list[str] = []
