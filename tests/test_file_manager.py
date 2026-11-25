@@ -442,7 +442,6 @@ class TestErrorChoices:
         assert not operation.processed(file_system, C)
         assert selection.files == []
 
-    @pytest.mark.xfail(strict=True, reason="the stop message does not say how many files were processed")
     def test_stop_reports_how_many_files_were_processed(self, operation, manager, selection, ui, file_system):
         selection.files = [A, B, C]
         file_system.fail(operation.failing_step, C, PermissionError("locked"))

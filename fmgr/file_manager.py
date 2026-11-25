@@ -47,10 +47,11 @@ class FileManager:
             self._rollback(done, undo)
             self._ui.show_message(f"{operation} cancelled, changes rolled back")
             return []
+        summary = f"{len(done)} {done_message}"
         if interruption is None:
-            self._ui.show_message(f"{len(done)} {done_message}")
+            self._ui.show_message(summary)
         else:
-            self._ui.show_message(f"{operation} stopped")
+            self._ui.show_message(f"{operation} stopped, {summary}")
         self._selection.clear_selection()
         return [result for _, result in done]
 
