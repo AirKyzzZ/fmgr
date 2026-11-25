@@ -248,3 +248,83 @@ class TestMoveFiles:
         assert ui.messages == [f"Destination is not a directory: {destination}"]
         assert file_system.entries == INITIAL_ENTRIES
         assert selection.files == [A, C]
+
+
+class TestDeleteFiles:
+    def test_deletes_a_selected_file_without_leaving_it_staged(self, manager, selection, ui, file_system):
+        selection.files = [A]
+
+        manager.delete_files()
+
+        assert file_system.entries == without(A)
+        assert ui.messages == ["1 file(s)/folder(s) deleted"]
+        assert ui.errors == []
+
+    def test_deletes_files_and_directories(self, manager, selection, ui, file_system):
+        selection.files = [A, PHOTOS, C]
+
+        manager.delete_files()
+
+        assert file_system.entries == without(A, PHOTOS, C)
+        assert ui.messages == ["3 file(s)/folder(s) deleted"]
+
+    def test_empty_selection_deletes_nothing(self, manager, ui, file_system):
+        manager.delete_files()
+
+        assert file_system.entries == INITIAL_ENTRIES
+        assert ui.messages == ["0 file(s)/folder(s) deleted"]
+        assert ui.errors == []
+
+    def test_deletes_names_with_spaces_and_accents(self, manager, selection, ui, file_system):
+        file_system.entries["/src/vieux brouillon à jeter.txt"] = "x"
+        selection.files = ["/src/vieux brouillon à jeter.txt"]
+
+        manager.delete_files()
+
+        assert file_system.entries == INITIAL_ENTRIES
+        assert ui.messages == ["1 file(s)/folder(s) deleted"]
+
+    def test_clears_the_selection_once_done(self, manager, selection):
+        selection.files = [A, B]
+
+        manager.delete_files()
+
+        assert selection.files == []
+
+    def test_reports_a_missing_file_to_the_user(self, manager, selection, ui, file_system):
+        selection.files = ["/src/ghost.txt", A]
+        ui.choices = [ErrorChoice.IGNORE]
+
+        manager.delete_files()
+
+        [(path, error)] = ui.errors
+        assert path == "/src/ghost.txt"
+        assert isinstance(error, FileNotFoundError)
+        assert file_system.entries == without(A)
+
+    def test_keeps_a_locked_file_and_deletes_the_others(self, manager, selection, ui, file_system):
+        selection.files = [A, B, C]
+        file_system.fail("trash", B, PermissionError("locked"))
+        ui.choices = [ErrorChoice.IGNORE]
+
+        manager.delete_files()
+
+        assert file_system.entries == without(A, C)
+
+    def test_stop_purges_what_was_already_staged(self, manager, selection, ui, file_system):
+        selection.files = [A, B, C]
+        file_system.fail("trash", B, PermissionError("locked"))
+        ui.choices = [ErrorChoice.STOP]
+
+        manager.delete_files()
+
+        assert file_system.entries == without(A)
+
+    def test_rollback_restores_a_deleted_directory(self, manager, selection, ui, file_system):
+        selection.files = [PHOTOS, A]
+        file_system.fail("trash", A, PermissionError("locked"))
+        ui.choices = [ErrorChoice.ROLLBACK]
+
+        manager.delete_files()
+
+        assert file_system.entries == INITIAL_ENTRIES
