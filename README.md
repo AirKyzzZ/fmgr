@@ -96,6 +96,8 @@ uv run mutmut results
 uv run mutmut show <id du mutant>
 ```
 
+Premier passage : 114 mutants, 113 tués. Le survivant était équivalent (`ignore_all = None` au lieu de `False`, pareil pour un `if`), on l'a tracé dans #1 puis exclu avec `# pragma: no mutate`. Depuis : 112/112.
+
 ## Étapes et tags
 
 | Étape | Tag |
@@ -107,3 +109,4 @@ uv run mutmut show <id du mutant>
 | Atelier 2, étape 1 : projet de test uv | `a2-etape1` |
 | Atelier 2, étape 2 : tests et corrections de `FileManager` | `a2-etape2` |
 | Atelier 2, étape 3 : couverture à 100 % et config mutmut | `a2-etape3-coverage` |
+| Atelier 2, étape 3 : mutants survivants traités | `a2-etape3-mutation` |
