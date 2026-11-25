@@ -1,4 +1,6 @@
-from fmgr.interfaces import FileSelection, FileSystem, UserInterface
+from collections.abc import Callable
+
+from fmgr.interfaces import ErrorChoice, FileSelection, FileSystem, UserInterface
 
 
 class FileManager:
@@ -8,34 +10,34 @@ class FileManager:
         self._file_system = file_system
 
     def copy_files(self, destination: str) -> None:
-        try:
-            selected_files = self._selection.get_selected_files()
-            for path in selected_files:
-                if self._file_system.exists(path):
-                    self._file_system.copy(path, destination)
-            self._ui.show_message(f"{len(selected_files)} file(s) copied")
-            self._selection.clear_selection()
-        except Exception as e:
-            self._ui.show_message(f"Copy error: {e}")
+        self._run("Copy", "file(s) copied", lambda source: self._file_system.copy(source, destination))
 
     def move_files(self, destination: str) -> None:
-        try:
-            selected_files = self._selection.get_selected_files()
-            for path in selected_files:
-                if self._file_system.exists(path):
-                    self._file_system.move(path, destination)
-            self._ui.show_message(f"{len(selected_files)} file(s) moved")
-            self._selection.clear_selection()
-        except Exception as e:
-            self._ui.show_message(f"Move error: {e}")
+        self._run("Move", "file(s) moved", lambda source: self._file_system.move(source, destination))
 
     def delete_files(self) -> None:
-        try:
-            selected_files = self._selection.get_selected_files()
-            for path in selected_files:
-                if self._file_system.exists(path):
-                    self._file_system.delete(path)
-            self._ui.show_message(f"{len(selected_files)} file(s)/folder(s) deleted")
-            self._selection.clear_selection()
-        except Exception as e:
-            self._ui.show_message(f"Delete error: {e}")
+        self._run("Delete", "file(s)/folder(s) deleted", self._file_system.delete)
+
+    def _run(self, operation: str, done_message: str, apply: Callable[[str], None]) -> None:
+        selected_files = list(self._selection.get_selected_files())
+        interruption = self._apply_all(selected_files, apply)
+        if interruption is None:
+            self._ui.show_message(f"{len(selected_files)} {done_message}")
+        else:
+            self._ui.show_message(f"{operation} stopped")
+        self._selection.clear_selection()
+
+    def _apply_all(self, sources: list[str], apply: Callable[[str], None]) -> int | None:
+        ignore_all = False
+        for source in sources:
+            try:
+                apply(source)
+            except OSError as error:
+                if ignore_all:
+                    continue
+                choice = self._ui.error_choice(source, error)
+                if choice == ErrorChoice.IGNORE_ALL:
+                    ignore_all = True
+                elif choice != ErrorChoice.IGNORE:
+                    return choice
+        return None

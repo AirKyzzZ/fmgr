@@ -27,9 +27,6 @@ class UserInterface(ABC):
 
 class FileSystem(ABC):
     @abstractmethod
-    def exists(self, path: str) -> bool: ...
-
-    @abstractmethod
     def copy(self, source: str, destination: str) -> None: ...
 
     @abstractmethod

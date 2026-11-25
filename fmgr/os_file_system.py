@@ -5,9 +5,6 @@ from fmgr.interfaces import FileSystem
 
 
 class OsFileSystem(FileSystem):
-    def exists(self, path: str) -> bool:
-        return os.path.exists(path)
-
     def copy(self, source: str, destination: str) -> None:
         shutil.copy2(source, destination)
 
