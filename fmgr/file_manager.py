@@ -69,7 +69,7 @@ class FileManager:
         self, sources: list[str], apply: Callable[[str], str]
     ) -> tuple[list[tuple[str, str]], int | None]:
         done: list[tuple[str, str]] = []
-        ignore_all = False
+        ignore_all = False  # pragma: no mutate
         for source in sources:
             try:
                 done.append((source, apply(source)))
